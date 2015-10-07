@@ -42,7 +42,7 @@ public class Player implements pb.sim.Player {
 	    int inner = -1;
 	    int outer = -1;
 	    double innerR = 0;
-	    boolean stabilized = false;
+	    //boolean stabilized = false;
 	    if (inner == -1) {
 		if (asteroids[0].orbit.a < asteroids[1].orbit.a) {
 		    inner = 0;
@@ -55,26 +55,34 @@ public class Player implements pb.sim.Player {
 		    innerR = asteroids[inner].orbit.a;
 		}
 	    }
-	    Point v = asteroids[inner].orbit.velocityAt(time);
-	    double normv = Math.sqrt(v.x*v.x+v.y*v.y);
-	    double theta = Math.atan2(v.y,v.x);
-	    
-	    double r2 = asteroids[outer].orbit.a;
-	    Point asteroidLocation = new Point();
-	    asteroids[inner].orbit.positionAt(time, asteroidLocation);
-	    if (asteroids[inner].orbit.a == asteroids[inner].orbit.b) {
-		double r1 = asteroids[inner].orbit.a;
+	    double r1 = asteroids[inner].orbit.a;	    
+	    double r2 = asteroids[outer].orbit.a;	    
+	    double omega_outer = Math.sqrt(Orbit.GM / Math.pow(r2,3));
+	    Point v_inner = asteroids[inner].orbit.velocityAt(time);
+	    double normv = Math.sqrt(v_inner.x*v_inner.x+v_inner.y*v_inner.y);
+	    double theta_inner = Math.atan2(v_inner.y,v_inner.x);
+	    Point v_outer = asteroids[outer].orbit.velocityAt(time);
+	    double theta_outer = Math.atan2(v_outer.y,v_outer.x);
+	    double tH = Math.PI * Math.sqrt( Math.pow(r1+r2,3) / (8*Orbit.GM));
+	    double thresh = asteroids[inner].radius() + asteroids[outer].radius();
+	    /*Point asteroidLocation = new Point();
+	      asteroids[inner].orbit.positionAt(time, asteroidLocation);*/
+	    if ( Math.abs(theta_inner + Math.PI - theta_outer - tH*omega_outer) < thresh / r2) {
 		double vnew = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
 		energy[inner] = 0.5*asteroids[inner].mass * vnew * vnew;
-		direction[inner] = theta;
+		direction[inner] = theta_inner;
 	    }
-	    else if ( stabilized == false && Math.abs(Math.sqrt(asteroidLocation.x*asteroidLocation.x + asteroidLocation.y*asteroidLocation.y) - r2) < 0.001 * (asteroids[inner].radius() + asteroids[outer].radius())) {
+	    /*	    else if ( !stabilized && Math.abs(Math.sqrt(asteroidLocation.x*asteroidLocation.x + asteroidLocation.y*asteroidLocation.y) - r2) < 0.001 * (asteroids[inner].radius() + asteroids[outer].radius())) {		
 		double r1 = innerR;
-		r2 = Math.sqrt(asteroidLocation.x*asteroidLocation.x + asteroidLocation.y*asteroidLocation.y);
-		double vnew = Math.sqrt(Orbit.GM / r2) * (1 - Math.sqrt(2*r1/(r1+r2)));
-		energy[inner] = 0.5*asteroids[inner].mass * vnew * vnew;
-		direction[inner] = theta;
-		stabilized = true;
+		double dist = Math.sqrt(asteroidLocation.x*asteroidLocation.x + asteroidLocation.y*asteroidLocation.y);
+		Point next = new Point();
+		asteroids[inner].orbit.positionAt(time+1,next);
+		if (Math.abs(Math.sqrt(next.x*next.x-next.y*next.y)-r2) > Math.abs(dist-r2)) {
+		    double vnew = Math.sqrt(Orbit.GM / r2) * (1 - Math.sqrt(2*r1/(r1+r2)));
+		    energy[inner] = 0.5*asteroids[inner].mass * vnew * vnew;
+		    direction[inner] = theta;
+		    stabilized = true;
 		}
+		}*/
 	}
 }
