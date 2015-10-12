@@ -9,7 +9,7 @@ import java.util.Random;
 import java.util.ArrayList;
 import java.util.Collections;
 
-public class Player implements pb.sim.Player {
+public class Playerk implements pb.sim.Player {
 
     // used to pick asteroid and velocity boost randomly
     private Random random = new Random();
@@ -102,7 +102,11 @@ public class Player implements pb.sim.Player {
 	System.out.println( Math.sqrt( G * (M + outerAsteroid.mass) / r2));*/
 	
 	if (n < prevNumAsteroids) { //collision occurred, correct orbit of outermost asteroid
+		System.out.println("  ---- " );
+		System.out.println("  Year: " + (1 + time / 365));
+		System.out.println("  Day: "  + (1 + time % 365));
 	    System.out.println("Collision!");
+	    System.out.println("  ---- " );
 	    Point location = new Point();
 	    outerAsteroid.orbit.positionAt(time - outerAsteroid.epoch, location);
 	    double outerRadius = l2norm(location); // non circular orbit
