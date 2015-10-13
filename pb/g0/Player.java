@@ -25,7 +25,7 @@ public class Player implements pb.sim.Player {
 
     // time until next push
     //private long time_of_collision = 0;
-    private boolean collisionStarted = false;
+    //private boolean collisionStarted = false;
 
     private int prevNumAsteroids = -1;
 
@@ -88,7 +88,7 @@ public class Player implements pb.sim.Player {
 	double omega2 = Math.sqrt(Orbit.GM / Math.pow(r2,3));
 
 	HashSet<push_move> asteroids_in_phase = new HashSet<push_move>();
-	
+	System.out.println("TIME = " + time);
 	for (int i=0; i<n; i++) {
 	    if (i == accumulator_index) {continue;}
 	    Asteroid push_asteroid = asteroids[i];
@@ -96,7 +96,7 @@ public class Player implements pb.sim.Player {
 	    double thresh = push_asteroid.radius() + accumulator.radius();
 	    double tH = Math.PI * Math.sqrt( Math.pow(r1+r2,3) / (8*Orbit.GM));
 	    
-	    for (long t = 0 ; t < time_limit ; ++t) {
+	    for (long t = 0 ; t < .8*time_limit ; ++t) {
 		push_asteroid.orbit.velocityAt(time+t, v1);
 		double theta1 = Math.atan2(v1.y,v1.x);
 		accumulator.orbit.velocityAt(time+t, v2);
@@ -163,8 +163,13 @@ public class Player implements pb.sim.Player {
 		min_energy_q.add(pm);
 	    }
 
+	    /*PriorityQueue<push_move> min_E_q_copy = min_energy_q.clone();
+	    while(!min_E_q_copy.isEmpty())
+	    {
+	    	System.out.println(min_E_q_copy.poll().energy);
+	    }*/
 
-	while(accumulated_mass < total_mass/2.0)
+	while(accumulated_mass < total_mass*.55)
 	    {
 		if(min_energy_q.isEmpty() || min_density_q.isEmpty())
 		    {
@@ -177,21 +182,29 @@ public class Player implements pb.sim.Player {
 		double massD = asteroids[minD.index].mass;
 				//if((accumulated_mass + massE)>= total_mass/2.0)
 		    	//	    {
+			/*
 			accumulated_mass+=massE;
 			toPush.put(minE.id, minE.time);
-			min_energy_q.poll();
+			min_energy_q.remove(minE);
 			min_density_q.remove(minE);
-
+			System.out.println("Density= " + minE.density);
+			System.out.println("Energy = " + minE.energy);
+			*/
 					//    }
-			/*	else
-		    {
+			//	else
+		    //{
 			accumulated_mass+=massD;
-			toPush.put(min_density_q.poll().id, minD.time);
+			toPush.put(minD.id, minD.time);
 			min_energy_q.remove(minD);
-			}*/
+			min_density_q.remove(minD);
+			System.out.println("Density= " + minD.density);
+			System.out.println("Energy = " + minD.energy);
+			//}
 
 	    }
-	
+		System.out.println("accumulated mass = " + accumulated_mass);
+		System.out.println("total mass = " + total_mass);
+		System.out.println("number of asteroids to push = " + toPush.size());
 	return toPush;
 
     }
@@ -282,11 +295,11 @@ public class Player implements pb.sim.Player {
 	    energy[outerIndex] = 0.5 * outerAsteroid.mass * Math.pow(parameters.get(0),2);
 	    direction[outerIndex] = parameters.get(1);
 	    prevNumAsteroids = n;
-	    collisionStarted = false;
+	    //collisionStarted = false;
 	    return;
 	}
 	
-	if (collisionStarted) {return;}
+	//if (collisionStarted) {return;}
 	int min_index = -1;
 	long min_time = 0;
 	for (int i=n-2; i>=0; i--) {
@@ -304,6 +317,14 @@ public class Player implements pb.sim.Player {
 	    v2 = outerAsteroid.orbit.velocityAt(t - outerAsteroid.epoch);
 	    theta2 = Math.atan2(v2.y,v2.x);
 
+	    if(collidingAsteroids.containsKey(innerAsteroid.id))
+	    {
+	    	if(time == collidingAsteroids.get(innerAsteroid.id))
+	    	{
+	    		System.out.println("Expecting to see asteroid " + innerAsteroid.id + " pushed now.");
+
+	    	}
+	    }
 	    if ( Math.abs(theta1 + Math.PI - theta2 - tH*omega2) < thresh / r2) {
 		if (collidingAsteroids.containsKey(innerAsteroid.id)){// && Math.abs(collidingAsteroids.get(innerAsteroid.id) - time) < 2*365 ) {
 		    collidingAsteroids.remove(innerAsteroid.id);
@@ -311,8 +332,16 @@ public class Player implements pb.sim.Player {
 		    double E = 0.5*asteroids[innerIndex].mass * vnew * vnew;
 		    energy[innerIndex] = E;
 		    direction[innerIndex] = theta1;
-		    collisionStarted = true;
+		    System.out.println("Asteroid " + innerAsteroid.id + " was just pushed.");
+		    //collisionStarted = true;
 		    System.out.println(collidingAsteroids.size() + " remaining asteroids to collide.");
+		    if(collidingAsteroids.size() == 1)
+		    {
+		    	for(Long id : collidingAsteroids.keySet())
+		    	{
+		    		System.out.println("time of predicted collision = DAY " + (1+collidingAsteroids.get(id)%365) + "YEAR " + (1+collidingAsteroids.get(id)/365));
+		    	}
+		    }
 		}
 	    }
 	}
