@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Comparator;
+import java.util.Iterator;
 
 public class Player implements pb.sim.Player {
 
@@ -131,18 +132,25 @@ public class Player implements pb.sim.Player {
     	Comparator<push_move> density_comparator = new Comparator<push_move>(){
 		public int compare(push_move pm1, push_move pm2)
 		{
-		    Double d1 = new Double(pm1.density);
-		    Double d2 = new Double(pm2.density);
-		    return -d1.compareTo(d2);
+			double d1 = pm1.density;
+			double d2 = pm2.density;
+			return Double.compare(d1, d2);
 		} };
     	
 
 	Comparator<push_move> energy_comparator = new Comparator<push_move>(){
 		public int compare(push_move pm1, push_move pm2)
 		{
-		    Double d1 = new Double(pm1.energy);
-		    Double d2 = new Double(pm2.energy);
-		    return -d1.compareTo(d2);
+			double e1 = pm1.energy;
+			double e2 = pm2.energy;
+			return Double.compare(e1, e2);
+
+		    //if(Math.abs(e1-e2)<.00000000000001)
+		    //	return 0;
+		    //else if(e1 > e2)
+		    //	return 1;
+		    //else
+		    //	return -1;
 		} };
 
 
@@ -155,6 +163,7 @@ public class Player implements pb.sim.Player {
 		min_energy_q.add(pm);
 	    }
 
+
 	while(accumulated_mass < total_mass/2.0)
 	    {
 		if(min_energy_q.isEmpty() || min_density_q.isEmpty())
@@ -166,14 +175,15 @@ public class Player implements pb.sim.Player {
 		push_move minD = min_density_q.peek();
 		double massE = asteroids[minE.index].mass; //density = Energy/Mass 
 		double massD = asteroids[minD.index].mass;
-		//		if((accumulated_mass + massE)>= total_mass/2.0)
-		    //		    {
+				//if((accumulated_mass + massE)>= total_mass/2.0)
+		    	//	    {
 			accumulated_mass+=massE;
 			toPush.put(minE.id, minE.time);
 			min_energy_q.poll();
 			min_density_q.remove(minE);
-			//		    }
-		/*		else
+
+					//    }
+			/*	else
 		    {
 			accumulated_mass+=massD;
 			toPush.put(min_density_q.poll().id, minD.time);
@@ -181,6 +191,7 @@ public class Player implements pb.sim.Player {
 			}*/
 
 	    }
+	
 	return toPush;
 
     }
