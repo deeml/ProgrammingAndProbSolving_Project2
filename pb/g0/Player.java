@@ -69,43 +69,48 @@ public class Player implements pb.sim.Player {
     // print orbital information
     public void init(Asteroid[] asteroids, long time_limit)
     {
-	System.out.println(time);
 	if (Orbit.dt() != 24 * 60 * 60)
 	    throw new IllegalStateException("Time quantum is not a day");
 	this.time_limit = time_limit;
 	prevNumAsteroids = asteroids.length;
 	init_num_asteroids = asteroids.length;
-	asteroids_in_phase = getAsteroidsInPhase(asteroids, this.time_limit - 100*365, asteroids.length-1);
+	asteroids_in_phase = getAsteroidsInPhase(asteroids, this.time_limit - 40*365, asteroids.length-1);
 	this.collidingAsteroids = calc_asteroids(asteroids, asteroids_in_phase, asteroids.length-1);
+
     }
 
     private HashSet<push_move> getAsteroidsInPhase(Asteroid[] asteroids, long time_limit, int accumulator_index) {
 	int n = asteroids.length;
-	Asteroid accumulator = asteroids[accumulator_index];
+	ArrayList<asteroid_index> asteroids_ordered = new ArrayList();
+	Point astr_location = new Point();
+	for (int i=0; i<n; i++) {
+	    asteroids[i].orbit.positionAt(time - asteroids[i].epoch, astr_location);
+	    asteroids_ordered.add(new asteroid_index(i, l2norm(astr_location)));
+	}
+	Collections.sort(asteroids_ordered);	
+	Asteroid accumulator = asteroids[asteroids_ordered.get(accumulator_index).index];
 	Point v1 = new Point();
 	Point v2 = new Point();
 	double r2 = 0.5*(accumulator.orbit.a + accumulator.orbit.b);
 	double omega2 = Math.sqrt(Orbit.GM / Math.pow(r2,3));
 
 	HashSet<push_move> asteroids_in_phase = new HashSet<push_move>();
-	System.out.println("TIME = " + time);
 	for (int i=0; i<n; i++) {
 	    if (i == accumulator_index) {continue;}
-	    Asteroid push_asteroid = asteroids[i];
+	    Asteroid push_asteroid = asteroids[asteroids_ordered.get(i).index];
 	    double r1 = 0.5*(push_asteroid.orbit.a+push_asteroid.orbit.b);
 	    double thresh = push_asteroid.radius() + accumulator.radius();
 	    double tH = Math.PI * Math.sqrt( Math.pow(r1+r2,3) / (8*Orbit.GM));
-	    
+
 	    for (long t = 0 ; t < .8*time_limit ; ++t) {
-		push_asteroid.orbit.velocityAt(time+t, v1);
+		push_asteroid.orbit.velocityAt(t, v1);
 		double theta1 = Math.atan2(v1.y,v1.x);
-		accumulator.orbit.velocityAt(time+t, v2);
-		double theta2 = Math.atan2(v2.y,v2.x);
-		    
+		accumulator.orbit.velocityAt(t, v2);
+		double theta2 = Math.atan2(v2.y,v2.x);		    
 		if ( Math.abs(theta1 + Math.PI - theta2 - tH*omega2) < thresh / r2) {
-		    
-		    double vnew = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
-		    double E = 0.5*asteroids[i].mass * vnew * vnew;
+		    double deltav = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
+		    double E = 0.5*asteroids[asteroids_ordered.get(i).index].mass * (deltav * deltav + 2 * l2norm(v1) * deltav);
+		    //double E = 0.5*asteroids[i].mass*(deltav*deltav);
 		    asteroids_in_phase.add(new push_move(i,push_asteroid.id, E, theta1, time+t, E / push_asteroid.mass));
 		    break;
 		}
@@ -180,26 +185,26 @@ public class Player implements pb.sim.Player {
 		push_move minD = min_density_q.peek();
 		double massE = asteroids[minE.index].mass; //density = Energy/Mass 
 		double massD = asteroids[minD.index].mass;
-				//if((accumulated_mass + massE)>= total_mass/2.0)
-		    	//	    {
-			/*
+		if((accumulated_mass + massE)>= total_mass/2.0)
+		    {
+
 			accumulated_mass+=massE;
 			toPush.put(minE.id, minE.time);
 			min_energy_q.remove(minE);
 			min_density_q.remove(minE);
 			System.out.println("Density= " + minE.density);
 			System.out.println("Energy = " + minE.energy);
-			*/
-					//    }
-			//	else
-		    //{
+
+		    }
+		else
+		    {
 			accumulated_mass+=massD;
 			toPush.put(minD.id, minD.time);
 			min_energy_q.remove(minD);
 			min_density_q.remove(minD);
 			System.out.println("Density= " + minD.density);
 			System.out.println("Energy = " + minD.energy);
-			//}
+		    }
 
 	    }
 		System.out.println("accumulated mass = " + accumulated_mass);
@@ -276,7 +281,7 @@ public class Player implements pb.sim.Player {
 	Collections.sort(asteroids_ordered);
 	int outerIndex = asteroids_ordered.get(n-1).index;
 	Asteroid outerAsteroid = asteroids[outerIndex];
-	double r2 = asteroids_ordered.get(n-1).getRadius();
+	double r2 = asteroids_ordered.get(n-1).getRadius();// - asteroids[asteroids_ordered.get(n-1).index].radius();
 	double omega2 = Math.sqrt(Orbit.GM / Math.pow(r2,3));
 	Point v2 = outerAsteroid.orbit.velocityAt(time - outerAsteroid.epoch);
 	double theta2 = Math.atan2(v2.y,v2.x);
@@ -299,7 +304,6 @@ public class Player implements pb.sim.Player {
 	    return;
 	}
 	
-	//if (collisionStarted) {return;}
 	int min_index = -1;
 	long min_time = 0;
 	for (int i=n-2; i>=0; i--) {
@@ -328,8 +332,8 @@ public class Player implements pb.sim.Player {
 	    if ( Math.abs(theta1 + Math.PI - theta2 - tH*omega2) < thresh / r2) {
 		if (collidingAsteroids.containsKey(innerAsteroid.id)){// && Math.abs(collidingAsteroids.get(innerAsteroid.id) - time) < 2*365 ) {
 		    collidingAsteroids.remove(innerAsteroid.id);
-		    double vnew = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
-		    double E = 0.5*asteroids[innerIndex].mass * vnew * vnew;
+		    double deltav = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
+		    double E = 0.5*asteroids[innerIndex].mass * deltav * deltav;
 		    energy[innerIndex] = E;
 		    direction[innerIndex] = theta1;
 		    System.out.println("Asteroid " + innerAsteroid.id + " was just pushed.");
@@ -345,18 +349,5 @@ public class Player implements pb.sim.Player {
 		}
 	    }
 	}
-
-	//	if(min_index != -1)
-	//		{
-		// System.out.println("Number of asteroids being considered: " + count);
-		//energy[min_index] = min_E;
-		//direction[min_index] = min_dir;
-		//collisionStarted = true;
-		//push_queue.put(min_time, new push_move(min_index,asteroids[min_index].id, min_E, min_dir));
-		// System.out.println("Inserted into hashmap : "+push_queue.get(min_time).index + " | "+push_queue.get(min_time).energy + "|"+ push_queue.get(min_time).direction);
-		// System.out.println("  Year: " + (1 + min_time / 365));
-		// System.out.println("  Day: "  + (1 + min_time % 365));
-		// System.out.println("Energy for Push into Elliptical Orbit: " + energy[min_index]);
-		//}
     }
 }
