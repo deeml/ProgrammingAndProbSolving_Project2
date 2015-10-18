@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 import javax.tools.*;
+import java.awt.Desktop;
 import java.util.concurrent.*;
 
 class Simulator {
@@ -233,7 +234,8 @@ class Simulator {
 		Timer timer = new Timer();
 		timer.start();
 		// initialize the player
-		Asteroid[] asteroids_copy = Arrays.copyOf(asteroids, asteroids.length);
+		Asteroid[] asteroids_copy = Arrays.copyOf(asteroids,
+		                                          asteroids.length);
 		final Asteroid[] a0_final = asteroids_copy;
 		final Class <Player> c_final = player_class;
 		final long t_final = time_limit;
@@ -256,7 +258,20 @@ class Simulator {
 		if (gui) {
 			// initialize server and print the port
 			server = new HTTPServer();
-			System.err.println("HTTP port: " + server.port());
+			int port = server.port();
+			System.err.println("HTTP port: " + port);
+			// try to open web browser automatically
+			if (!Desktop.isDesktopSupported())
+				System.err.println("Desktop operations not supported");
+			else {
+				Desktop desktop = Desktop.getDesktop();
+				if (!desktop.isSupported(Desktop.Action.BROWSE))
+					System.err.println("Desktop browsing not supported");
+				else {
+					URI uri = new URI("http://localhost:" + port);
+					desktop.browse(uri);
+				}
+			}
 			// get orbits of known planets and show their periods
 			planets = gui_planets ? planet_orbits() : new Orbit[0];
 			// send initial state until successful
@@ -659,7 +674,7 @@ class Simulator {
 	}
 
 	// last modified
-	private static long modified(Set <File> files)
+	private static long last_modified(Iterable <File> files)
 	{
 		long last_date = 0;
 		for (File file : files) {
@@ -675,14 +690,12 @@ class Simulator {
 	                                       ReflectiveOperationException
 	{
 		String sep = File.separator;
-		String dir = root + sep + group;
-		File class_file  = new File(dir + sep + "Player.class");
-		File source_file = new File(dir + sep + "Player.java");
-		if (!class_file.exists() && !source_file.exists())
-			throw new FileNotFoundException("Missing source code");
-		Set <File> source_files = directory(dir, ".java");
-		if (!class_file.exists() || modified(source_files) >=
-		                            class_file.lastModified()) {
+		Set <File> source_files = directory(root + sep + group, ".java");
+		File class_file  = new File(root + sep + group + sep + "Player.class");
+		long player_modified = last_modified(source_files);
+		long simulator_modified = last_modified(directory(root + sep + "sim", ".java"));
+		if (!class_file.exists() || simulator_modified >= player_modified
+		                         || player_modified >= class_file.lastModified()) {
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 			if (compiler == null)
 				throw new IOException("Cannot find Java compiler");
@@ -693,7 +706,7 @@ class Simulator {
 			     manager.getJavaFileObjectsFromFiles(source_files)).call())
 				throw new IOException("Compilation failed");
 			System.err.println("done!");
-			class_file = new File(dir + sep + "Player.class");
+			class_file = new File(root + sep + group + sep + "Player.class");
 			if (!class_file.exists())
 				throw new FileNotFoundException("Missing class file");
 		}

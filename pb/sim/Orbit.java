@@ -130,7 +130,10 @@ public class Orbit implements Iterable <Point> {
 			double fE = E - e * Math.sin(E) - M;
 			if (Math.abs(fE) < 1.0e-12) break;
 			// f'(x) = 1 - e cos(x)
-			E -= fE / (1.0 - e * Math.cos(E));
+			double dfE = 1.0 - e * Math.cos(E);
+			if (dfE < 1.0e-12) throw new ArithmeticException(
+			                "Newton-Raphson cannot converge");
+			E -= fE / dfE;
 		}
 		// center based coordinate system with foci on xx'
 		r.x = a * Math.cos(E);
