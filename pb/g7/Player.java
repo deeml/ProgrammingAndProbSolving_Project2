@@ -64,7 +64,6 @@ public class Player implements pb.sim.Player {
 	}
 	Collections.sort(asteroids_ordered);	
 	Asteroid accumulator = asteroids[asteroids_ordered.get(accumulator_index).index];
-	this.accumulatorID = accumulator.id;
 	Point v1 = new Point();
 	Point v2 = new Point();
 	double r2 = 0.5*(accumulator.orbit.a + accumulator.orbit.b);
@@ -105,10 +104,20 @@ public class Player implements pb.sim.Player {
 
     public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
 {
+
+	int n = asteroids.length;
+	ArrayList<asteroid_index> asteroids_ordered = new ArrayList <asteroid_index> ();
+	Point astr_location = new Point();
+	for (int i=0; i<n; i++) {
+	    asteroids[i].orbit.positionAt(time - asteroids[i].epoch, astr_location);
+	    asteroids_ordered.add(new asteroid_index(i, l2norm(astr_location)));
+	}
+	Collections.sort(asteroids_ordered);	
+    
 	double total_mass = get_total_mass(asteroids);
 	HashMap<Long,Long> toPush = new HashMap<Long,Long>();
 	HashMap<Long,Long> toPush_min = null;
-	long accumulatorID_min = -1;
+	int accumulator_index_min = -1;
 	//Map<SomeType, OtherType> map1 = new HashMap<SomeType, OtherType>(original); 
 
 	Comparator<push_move> density_comparator = new Comparator<push_move>(){
@@ -129,12 +138,12 @@ public class Player implements pb.sim.Player {
 		} };
 
 	double total_energy_min = Double.MAX_VALUE;
-	for (int accumulator_id=asteroids.length-1; accumulator_id>=0; accumulator_id--)
+	for (int accumulator_index=asteroids.length-1; accumulator_index>=0; accumulator_index--)
 	{
-		HashSet<push_move> asteroids_in_phase_accumulator = getAsteroidsInPhase(asteroids, this.time_limit - 40*365, accumulator_id);
+		HashSet<push_move> asteroids_in_phase_accumulator = getAsteroidsInPhase(asteroids, this.time_limit - 40*365, accumulator_index);
 		PriorityQueue<push_move> min_density_q = new PriorityQueue<push_move>(asteroids_in_phase_accumulator.size(), density_comparator);
 		PriorityQueue<push_move> min_energy_q = new PriorityQueue<push_move>(asteroids_in_phase_accumulator.size(), energy_comparator);
-		double accumulated_mass = asteroids[accumulator_id].mass;
+		double accumulated_mass = asteroids[asteroids_ordered.get(accumulator_index).index].mass;
 		double total_energy = 0.0; // calculating the total energy expended using each orbit as accumulator
 		for(push_move pm : asteroids_in_phase_accumulator)
 		{
@@ -177,14 +186,14 @@ public class Player implements pb.sim.Player {
 		{
 			total_energy_min = total_energy;
 			toPush_min = new HashMap<Long,Long>(toPush);
-			accumulatorID_min = asteroids[accumulator_id].id; // Global Parameter
+			accumulator_index_min = accumulator_index; // Global Parameter
 			// System.out.println("New energy min : "+total_energy_min+ " | index : "+accumulatorID_min);
 
 		}
 		toPush.clear();
 	}
-	System.out.println("number of asteroids to push = " + toPush_min.size() + " | **Accumulator ID = "+accumulatorID_min+" | Predicted energy = ~"+total_energy_min+" Joules");
-	accumulatorID = accumulatorID_min;
+	System.out.println("number of asteroids to push = " + toPush_min.size() + " | **Accumulator index = "+accumulator_index_min+" | Predicted energy = ~"+total_energy_min+" Joules");
+	accumulatorID = asteroids[asteroids_ordered.get(accumulator_index_min).index].id;
 	return toPush_min;
 }
     

@@ -7,6 +7,7 @@ public class push_move{
     double direction;
     double density;
     long time;
+
     public push_move(int index, long id, double energy, double direction)
     {
 	this.index = index;
