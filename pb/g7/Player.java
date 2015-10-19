@@ -324,7 +324,7 @@ public class Player implements pb.sim.Player {
 	}
 	
 	Asteroid outerAsteroid = asteroids[outerIndex];
-	double r2 = outerAsteroid.orbit.a;// - asteroids[asteroids_ordered.get(n-1).index].radius();
+	double r2 = outerAsteroid.orbit.a;
 	double omega2 = Math.sqrt(Orbit.GM / Math.pow(r2,3));
 	Point v2 = outerAsteroid.orbit.velocityAt(time - outerAsteroid.epoch);
 	double theta2 = Math.atan2(v2.y,v2.x);
@@ -349,16 +349,21 @@ public class Player implements pb.sim.Player {
 	    theta2 = Math.atan2(v2.y,v2.x);
 
 	    if ( Math.abs(theta1 + Math.PI - theta2 - tH*omega2) < thresh / r2) {
-		if ((collidingAsteroids.containsKey(innerAsteroid.id) || time_limit - time < 50*365) && accumulated_mass < target_mass ){// && Math.abs(collidingAsteroids.get(innerAsteroid.id) - time) < 2*365 ) {
+		if ((collidingAsteroids.containsKey(innerAsteroid.id) || time_limit - time < 50*365) && accumulated_mass < target_mass ){
 		    collidingAsteroids.remove(innerAsteroid.id);
 		    double deltav = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
 		    double E = 0.5*asteroids[innerIndex].mass * deltav * deltav;
-		    energy[innerIndex] = E;
-		    if (r2 < r1) {direction[innerIndex] = theta1 + Math.PI;}
-		    else {direction[innerIndex] = theta1;}
-		    accumulated_mass += innerAsteroid.mass;
-		    System.out.println("Asteroid " + i + " pushed.");
-		    if (time_limit - time < 50*365) {System.out.println("Running out of time...");}		    
+		    double dir = 0;
+		    if (r2 < r1) {dir = theta1 + Math.PI;}
+		    else {dir = theta1;}
+
+		    if (pathFree(asteroids, innerIndex, outerIndex, E, dir, time)) {
+			energy[innerIndex] = E;
+			direction[innerIndex] = dir;
+			accumulated_mass += innerAsteroid.mass;
+			System.out.println("Asteroid " + i + " pushed.");
+			if (time_limit - time < 50*365) {System.out.println("Running out of time...");}
+		    }
 		}
 	    }
 	}
