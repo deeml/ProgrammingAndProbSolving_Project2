@@ -7,6 +7,7 @@ public class push_move{
     double direction;
     double density;
     long time;
+    double radius;
     public push_move(int index, long id, double energy, double direction)
     {
 	this.index = index;
@@ -14,7 +15,7 @@ public class push_move{
 	this.energy = energy;
 	this.direction = direction;
     }
-    public push_move(int index, long id, double energy, double direction, long time, double density)
+    public push_move(int index, long id, double energy, double direction, long time, double density, double radius)
     {
 	this.index = index;
 	this.id = id;
@@ -22,5 +23,6 @@ public class push_move{
 	this.direction = direction;
 	this.time = time;
 	this.density = density;
+	this.radius = radius;
     }
 }

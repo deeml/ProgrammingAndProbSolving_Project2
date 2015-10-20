@@ -91,8 +91,9 @@ public class Player implements pb.sim.Player {
 		if ( Math.abs(theta1 + Math.PI - theta2 - tH*omega2) < thresh / r2) {
 		    double deltav = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
 		    // double E = Math.abs(0.5*asteroids[asteroids_ordered.get(i).index].mass * (deltav * deltav + 2 * l2norm(v1) * deltav));
-		    double E = 0.5*asteroids[i].mass*(deltav*deltav);
-		    asteroids_in_phase.add(new push_move(i,push_asteroid.id, E, theta1, time+t, E / push_asteroid.mass));
+		    double E = 0.5*asteroids[asteroids_ordered.get(i).index].mass*(deltav*deltav);
+		    //asteroids_in_phase.add(new push_move(asteroids_ordered.get(i).index,push_asteroid.id, E, theta1, time+t, E / push_asteroid.mass, push_asteroid.orbit.a));
+		    asteroids_in_phase.add(new push_move(i,push_asteroid.id, E, theta1, time+t, E / push_asteroid.mass, push_asteroid.orbit.a));
 		    break;
 		}
 	    }
@@ -149,8 +150,11 @@ public class Player implements pb.sim.Player {
 		HashSet<push_move> asteroids_in_phase_accumulator = getAsteroidsInPhase(asteroids, this.time_limit - 40*365, accumulator_index);
 		PriorityQueue<push_move> min_density_q = new PriorityQueue<push_move>(asteroids_in_phase_accumulator.size(), density_comparator);
 		PriorityQueue<push_move> min_energy_q = new PriorityQueue<push_move>(asteroids_in_phase_accumulator.size(), energy_comparator);
-		double accumulated_mass = asteroids[asteroids_ordered.get(accumulator_index).index].mass;
+		Asteroid accumulator = asteroids[asteroids_ordered.get(accumulator_index).index];
+		double accumulated_mass = accumulator.mass;
+		double accumulator_velocity = Math.sqrt(Orbit.GM / asteroids[asteroids_ordered.get(accumulator_index).index].orbit.a);
 		double total_energy = 0.0; // calculating the total energy expended using each orbit as accumulator
+		double total_correction_energy = 0.0;
 		for(push_move pm : asteroids_in_phase_accumulator)
 		{
 			min_density_q.add(pm);
@@ -166,31 +170,49 @@ public class Player implements pb.sim.Player {
 
 		    push_move minE = min_energy_q.peek();
 		    push_move minD = min_density_q.peek();
-		    double massE = asteroids[minE.index].mass; //density = Energy/Mass 
-		    double massD = asteroids[minD.index].mass;
+		    double massE = asteroids[asteroids_ordered.get(minE.index).index].mass; //density = Energy/Mass 
+		    double massD = asteroids[asteroids_ordered.get(minD.index).index].mass;
+		    double push_mass = 0;
+		    double push_energy = 0;
+		    double push_radius = 0;
 		    if((accumulated_mass + massE)>= total_mass/2.0)
 			{//By energy:
-			    accumulated_mass+=massE;
+			    push_mass = massE;
+			    push_energy = minE.energy;
+			    push_radius = minE.radius;
 			    toPush.put(minE.id, minE.time);
-			    total_energy += minE.energy;
 			    // System.out.println("Push energies are : "+minE.energy);
 			    min_energy_q.remove(minE);
 			    min_density_q.remove(minE);
 			}
 		    else
 			{//By energy density:
-			    accumulated_mass+=massD;
+			    push_mass = massD;
+			    push_energy = minD.energy;
+			    push_radius = minE.radius;
 			    toPush.put(minD.id, minD.time);
 			    total_energy += minD.energy;
 			    // System.out.println("Push energies are : "+minD.energy);
 			    min_energy_q.remove(minD); 
 			    min_density_q.remove(minD);
-			}
+			}		    
+		    //double vi = Math.sqrt(Orbit.GM / 
+		    
+		    total_energy += push_energy;
+		    double velocity_after_push = 0;
+		    if (push_radius < accumulator.orbit.a) {velocity_after_push = orbitVelocity(push_radius) + Math.sqrt(2*push_energy/push_mass);}
+		    else {velocity_after_push = orbitVelocity(push_radius) - Math.sqrt(2*push_energy/push_mass);}
+		    double velocity_at_collision = velocity_after_push * push_radius / accumulator.orbit.a;
+		    double velocity_after_collision = (accumulated_mass * orbitVelocity(accumulator.orbit.a) + push_mass * velocity_at_collision) / (accumulated_mass + push_mass);
+		    accumulated_mass += push_mass;		    
+		    total_energy += Math.pow(orbitVelocity(accumulator.orbit.a) - velocity_after_collision,2) * accumulated_mass * 0.5;
+		    
 		    if (total_energy > total_energy_min) {
 			break;
-		    }
-		}
-		// System.out.println("accumulator index : "+accumulator_id+" | total_energy : "+total_energy+ " | Min value : "+total_energy_min);
+		    }		   		    
+		    
+		}		
+		System.out.println("accumulator index : "+accumulator_index+" | total_energy : "+total_energy+ " | Min value : "+total_energy_min);
 		if (total_energy < total_energy_min)
 		{
 			total_energy_min = total_energy;
@@ -205,7 +227,8 @@ public class Player implements pb.sim.Player {
 	accumulatorID = asteroids[asteroids_ordered.get(accumulator_index_min).index].id;
 	return toPush_min;
 }
-    
+
+    private double orbitVelocity(double r) {return Math.sqrt(Orbit.GM / r);}
     private double l2norm(Point p) {return Math.sqrt(p.x*p.x+p.y*p.y);}
     private double l2norm(double x, double y) {return Math.sqrt(x*x+y*y);}
 
