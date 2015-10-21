@@ -373,6 +373,12 @@ public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
 	if (allDone) {
 	    orbit_correction_done = true;
 	    this.collidingAsteroids = calc_asteroids(asteroids);
+	    if (this.collidingAsteroids == null) {
+		orbit_correction_done = false;
+		for (int i=0; i<asteroids.length; i++) {
+		    orbit_corrected[i] = false;
+		}
+	    }
 	}
 
 		
