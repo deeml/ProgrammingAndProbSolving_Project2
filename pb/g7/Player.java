@@ -112,7 +112,7 @@ public class Player implements pb.sim.Player {
 	    double thresh = push_asteroid.radius() + accumulator.radius();
 	    double tH = Math.PI * Math.sqrt( Math.pow(r1+r2,3) / (8*Orbit.GM));
 
-	    for (long t = 0 ; t < .8*time_limit ; ++t) {
+	    for (long t = time+1 ; t < .8*time_limit ; ++t) {
 		push_asteroid.orbit.velocityAt(t, v1);
 		double theta1 = Math.atan2(v1.y,v1.x);
 		accumulator.orbit.velocityAt(t, v2);
@@ -250,13 +250,12 @@ public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
 		    }		   		    
 		    
 		}		
-		System.out.println("accumulator index : "+accumulator_index+" | total_energy : "+total_energy+ " | Min value : "+total_energy_min);
+		System.out.println("accumulator index : "+accumulator_index+" | total_energy : "+total_energy+ " | Mass accumulated : "+accumulated_mass);
 		if (total_energy < total_energy_min)
 		{
 			total_energy_min = total_energy;
 			toPush_min = new HashMap<Long,Long>(toPush);
 			accumulator_index_min = accumulator_index; // Global Parameter
-			// System.out.println("New energy min : "+total_energy_min+ " | index : "+accumulatorID_min);
 
 		}
 		toPush.clear();
@@ -342,19 +341,21 @@ public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
 	for (int i=0; i<asteroids.length; i++) {
 	    asteroids[i].orbit.positionAt(time - asteroids[i].epoch,location);
 	    asteroids[i].orbit.velocityAt(time - asteroids[i].epoch,velocity);
-	    if (asteroids[i].orbit.a == asteroids[i].orbit.b && !orbit_corrected[i]) {
-		double r2 = asteroids[i].orbit.a * (1 + Math.random() * 0.5);
-		double r1 = asteroids[i].orbit.a;
-		double deltav = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
-		double E = 0.5*asteroids[i].mass * deltav * deltav;
-		double theta1 = Math.atan2(velocity.y,velocity.x);
-		double dir = theta1;		
-		energy[i] = E;
-		direction[i] = dir;
-		allDone = false;
-		orbit_corrected[i] = true;
+	    if (asteroids[i].orbit.a == asteroids[i].orbit.b){// && !orbit_corrected[i]) {
+		if (!orbit_corrected[i]) {
+		    double r2 = asteroids[i].orbit.a * (1 + Math.random()*0.5);
+		    double r1 = asteroids[i].orbit.a;
+		    double deltav = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
+		    double E = 0.5*asteroids[i].mass * deltav * deltav;
+		    double theta1 = Math.atan2(velocity.y,velocity.x);
+		    double dir = theta1;		
+		    energy[i] = E;
+		    direction[i] = dir;
+		    allDone = false;
+		    orbit_corrected[i] = true;
+		}
 	    }
-	    else if ( Math.abs(l2norm(location) - Math.max(asteroids[i].orbit.a, asteroids[i].orbit.b)) < asteroids[i].radius()) {
+	    else if ( Math.abs(l2norm(location) - Math.max(asteroids[i].orbit.a, asteroids[i].orbit.b)) < asteroids[i].radius() && asteroids[i].orbit.a != asteroids[i].orbit.b) {
 		double r2 = l2norm(location);
 		double orbit_speed = Math.sqrt(Orbit.GM / r2);
 		double tangent_theta = Math.PI/2 + Math.atan2(location.y, location.x);
@@ -491,7 +492,7 @@ public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
 			energy[innerIndex] = E;
 			direction[innerIndex] = dir;
 			accumulated_mass += innerAsteroid.mass;
-			System.out.println("Asteroid " + innerAsteroid.id + " pushed___________________");
+			System.out.println("Asteroid " + innerAsteroid.id + " pushed.");
 			if (time_limit - time < 50*365) {
 			    System.out.println("Running out of time...");
 			    System.out.println(collidingAsteroids.size() + " remaining asteroids in queue.");
