@@ -40,24 +40,53 @@ public class Player implements pb.sim.Player {
 
     private double target_mass;
 
+    //    private HashSet<Long> needOrbitCorrected;
+    private boolean[] orbit_corrected;
+    private boolean orbit_correction_done = true;
+    private boolean greater_max_case;
 
     HashMap<Long, push_move> push_queue = new HashMap<Long, push_move>();
 
-    // print orbital information
     public void init(Asteroid[] asteroids, long time_limit)
     {
-	target_mass = 0;
-	for (int i=0; i<asteroids.length; i++) {
-	    target_mass += 0.5*asteroids[i].mass;
-	}
+	greater_max_case = is_greater_mass_case(asteroids);
+
+	if(greater_max_case)
+	    {
+		target_mass = get_total_mass(asteroids);
+	    }
+	else
+	    {
+		target_mass = 0.5*get_total_mass(asteroids);
+	    }
+
 	if (Orbit.dt() != 24 * 60 * 60)
 	    throw new IllegalStateException("Time quantum is not a day");
 	this.time_limit = time_limit;
 	prevNumAsteroids = asteroids.length;
 	init_num_asteroids = asteroids.length;
 	this.collidingAsteroids = calc_asteroids(asteroids);
-	System.out.println("**Optimal Accumulator ID = "+accumulatorID);
-	accumulated_mass = asteroids[(int)accumulatorID].mass;
+	if (this.collidingAsteroids == null) {
+	    orbit_correction_done = false;
+	    orbit_corrected = new boolean[asteroids.length];
+	    for (int i=0; i<asteroids.length; i++) {
+		orbit_corrected[i] = false;
+	    }
+	}
+	//accumulated_mass = asteroids[(int)accumulatorID].mass;
+    }
+
+    public boolean is_greater_mass_case(Asteroid[] asteroids)
+    {
+    	double total_mass = get_total_mass(asteroids);
+    	for(int i=0; i<asteroids.length; ++i)
+    	{
+    		if(asteroids[i].mass > total_mass/2.0)
+    		{
+    			return true;
+    		}
+    	}
+    	return false;
     }
 
     private HashSet<push_move> getAsteroidsInPhase(Asteroid[] asteroids, long time_limit, int accumulator_index) {
@@ -109,8 +138,10 @@ public class Player implements pb.sim.Player {
     	return total_mass;
     }
 
-    public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
+public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
 {
+	double threshold = .5;
+	if(greater_max_case){threshold = 1.0;}
 	int n = asteroids.length;
 	ArrayList<asteroid_index> asteroids_ordered = new ArrayList <asteroid_index> ();
 	Point astr_location = new Point();
@@ -118,7 +149,7 @@ public class Player implements pb.sim.Player {
 	    asteroids[i].orbit.positionAt(time - asteroids[i].epoch, astr_location);
 	    asteroids_ordered.add(new asteroid_index(i, l2norm(astr_location)));
 	}
-	Collections.sort(asteroids_ordered);
+	Collections.sort(asteroids_ordered);	
     
 	double total_mass = get_total_mass(asteroids);
 	HashMap<Long,Long> toPush = new HashMap<Long,Long>();
@@ -146,7 +177,13 @@ public class Player implements pb.sim.Player {
 	double total_energy_min = Double.MAX_VALUE;
 	for (int accumulator_index=asteroids.length-1; accumulator_index>=0; accumulator_index--)
 	{
-		HashSet<push_move> asteroids_in_phase_accumulator = getAsteroidsInPhase(asteroids, this.time_limit - 50*365, accumulator_index);
+		HashSet<push_move> asteroids_in_phase_accumulator = getAsteroidsInPhase(asteroids, this.time_limit - 40*365, accumulator_index);
+		if(asteroids_in_phase_accumulator.isEmpty())
+		{
+			System.out.println("No asteroids come in phase.");
+			continue;
+		}
+
 		PriorityQueue<push_move> min_density_q = new PriorityQueue<push_move>(asteroids_in_phase_accumulator.size(), density_comparator);
 		PriorityQueue<push_move> min_energy_q = new PriorityQueue<push_move>(asteroids_in_phase_accumulator.size(), energy_comparator);
 		Asteroid accumulator = asteroids[asteroids_ordered.get(accumulator_index).index];
@@ -154,15 +191,17 @@ public class Player implements pb.sim.Player {
 		double accumulator_velocity = Math.sqrt(Orbit.GM / asteroids[asteroids_ordered.get(accumulator_index).index].orbit.a);
 		double total_energy = 0.0; // calculating the total energy expended using each orbit as accumulator
 		double total_correction_energy = 0.0;
+
 		for(push_move pm : asteroids_in_phase_accumulator)
 		{
 			min_density_q.add(pm);
 			min_energy_q.add(pm);
 		}
-		while(accumulated_mass < total_mass*.5)
+		while(accumulated_mass < total_mass*threshold)
 		{
 		    if(min_energy_q.isEmpty() || min_density_q.isEmpty())
 			{
+				total_energy = Double.MAX_VALUE;
 			    System.out.println("Asteroids don't have enough mass");
 			    break;
 			}
@@ -174,7 +213,7 @@ public class Player implements pb.sim.Player {
 		    double push_mass = 0;
 		    double push_energy = 0;
 		    double push_radius = 0;
-		    if((accumulated_mass + massE)>= total_mass/2.0)
+		    if((accumulated_mass + massE)>= total_mass*threshold)
 			{//By energy:
 			    push_mass = massE;
 			    push_energy = minE.energy;
@@ -207,12 +246,11 @@ public class Player implements pb.sim.Player {
 		    total_energy += Math.pow(orbitVelocity(accumulator.orbit.a) - velocity_after_collision,2) * accumulated_mass * 0.5;
 		    
 		    if (total_energy > total_energy_min) {
-			System.out.println("Pruned.");
 			break;
 		    }		   		    
 		    
 		}		
-		System.out.println("accumulatorID : "+accumulator.id+" | total_energy : "+total_energy+ " | Accumulated mass : "+accumulated_mass);
+		System.out.println("accumulator index : "+accumulator_index+" | total_energy : "+total_energy+ " | Min value : "+total_energy_min);
 		if (total_energy < total_energy_min)
 		{
 			total_energy_min = total_energy;
@@ -221,14 +259,29 @@ public class Player implements pb.sim.Player {
 			// System.out.println("New energy min : "+total_energy_min+ " | index : "+accumulatorID_min);
 
 		}
-		toPush.clear();		
+		toPush.clear();
 	}
-	System.out.println("Threshold: " + 0.5*total_mass);
+	if(total_energy_min == Double.MAX_VALUE) return null;
 	System.out.println("number of asteroids to push = " + toPush_min.size() + " | **Accumulator index = "+accumulator_index_min+" | Predicted energy = ~"+total_energy_min+" Joules");
 	accumulatorID = asteroids[asteroids_ordered.get(accumulator_index_min).index].id;
 	return toPush_min;
 }
 
+    //calculate ids of asteroids without pushes
+    /*public HashSet<Long> remaining_asteroids(HashMap<Long,Long> pushes, Asteroid[] asteroids)
+    {
+    	HashSet<Long> remaining = new HashSet<Long>();
+    	for(int i=0; i<asteroids.length; ++i)
+    	{
+	    if(pushes == null || !pushes.containsKey(asteroids[i].id))
+    		{
+		    remaining.add(asteroids[i].id);
+    		}
+    	}
+
+    	return remaining;
+    }*/
+    
     private double orbitVelocity(double r) {return Math.sqrt(Orbit.GM / r);}
     private double l2norm(Point p) {return Math.sqrt(p.x*p.x+p.y*p.y);}
     private double l2norm(double x, double y) {return Math.sqrt(x*x+y*y);}
@@ -280,13 +333,60 @@ public class Player implements pb.sim.Player {
 	}
 	System.out.println("No collision...");
 	return false;
-    } 
+    }
+
+    public void perturb_orbits(Asteroid[] asteroids, double[] energy, double[] direction) {
+	Point location = new Point();
+	Point velocity = new Point();
+	boolean allDone = true;
+	for (int i=0; i<asteroids.length; i++) {
+	    asteroids[i].orbit.positionAt(time - asteroids[i].epoch,location);
+	    asteroids[i].orbit.velocityAt(time - asteroids[i].epoch,velocity);
+	    if (asteroids[i].orbit.a == asteroids[i].orbit.b && !orbit_corrected[i]) {
+		double r2 = asteroids[i].orbit.a * (1 + Math.random() * 0.5);
+		double r1 = asteroids[i].orbit.a;
+		double deltav = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
+		double E = 0.5*asteroids[i].mass * deltav * deltav;
+		double theta1 = Math.atan2(velocity.y,velocity.x);
+		double dir = theta1;		
+		energy[i] = E;
+		direction[i] = dir;
+		allDone = false;
+		orbit_corrected[i] = true;
+	    }
+	    else if ( Math.abs(l2norm(location) - Math.max(asteroids[i].orbit.a, asteroids[i].orbit.b)) < asteroids[i].radius()) {
+		double r2 = l2norm(location);
+		double orbit_speed = Math.sqrt(Orbit.GM / r2);
+		double tangent_theta = Math.PI/2 + Math.atan2(location.y, location.x);
+		double omega2 = Math.sqrt(Orbit.GM / Math.pow(r2,3));
+		Point v2 = asteroids[i].orbit.velocityAt(time - asteroids[i].epoch);
+		double normv2 = l2norm(v2);
+		double theta2 = Math.atan2(v2.y,v2.x);
+		ArrayList<Double> parameters = calculatePush(normv2, theta2, orbit_speed, tangent_theta);
+		energy[i] = 0.5 * asteroids[i].mass * Math.pow(parameters.get(0),2);
+		direction[i] = parameters.get(1);		
+	    }
+	    else {
+		allDone = false;
+	    }
+	}
+	if (allDone) {
+	    orbit_correction_done = true;
+	    this.collidingAsteroids = calc_asteroids(asteroids);
+	}
+
+		
+    }
 
     // try to push asteroid
     public void play(Asteroid[] asteroids,
 		     double[] energy, double[] direction)
     {
 	time++;
+	if (!orbit_correction_done) {
+	    perturb_orbits(asteroids,energy,direction);
+	    return;
+	}
 	int n = asteroids.length;
 	ArrayList<asteroid_index> asteroids_ordered = new ArrayList <asteroid_index> ();
 	Point astr_location = new Point();
