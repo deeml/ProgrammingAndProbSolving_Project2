@@ -175,6 +175,7 @@ public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
 		} };
 
 	double total_energy_min = Double.MAX_VALUE;
+	System.out.println("Target mass : "+target_mass);
 	for (int accumulator_index=asteroids.length-1; accumulator_index>=0; accumulator_index--)
 	{
 		HashSet<push_move> asteroids_in_phase_accumulator = getAsteroidsInPhase(asteroids, this.time_limit - 40*365, accumulator_index);
@@ -343,7 +344,7 @@ public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
 	    asteroids[i].orbit.velocityAt(time - asteroids[i].epoch,velocity);
 	    if (asteroids[i].orbit.a == asteroids[i].orbit.b){// && !orbit_corrected[i]) {
 		if (!orbit_corrected[i]) {
-		    double r2 = asteroids[i].orbit.a * (1 + Math.random()*0.5);
+		    double r2 = asteroids[i].orbit.a * (1 + Math.random()*0.25);
 		    double r1 = asteroids[i].orbit.a;
 		    double deltav = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
 		    double E = 0.5*asteroids[i].mass * deltav * deltav;
