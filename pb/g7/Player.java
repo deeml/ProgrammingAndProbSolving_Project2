@@ -178,7 +178,7 @@ public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
 	System.out.println("Target mass : "+target_mass);
 	for (int accumulator_index=asteroids.length-1; accumulator_index>=0; accumulator_index--)
 	{
-		HashSet<push_move> asteroids_in_phase_accumulator = getAsteroidsInPhase(asteroids, this.time_limit - 40*365, accumulator_index);
+		HashSet<push_move> asteroids_in_phase_accumulator = getAsteroidsInPhase(asteroids, this.time_limit * 9 / 10, accumulator_index);
 		if(asteroids_in_phase_accumulator.isEmpty())
 		{
 			System.out.println("No asteroids come in phase.");
@@ -344,16 +344,21 @@ public HashMap<Long, Long> calc_asteroids(Asteroid[] asteroids)
 	    asteroids[i].orbit.velocityAt(time - asteroids[i].epoch,velocity);
 	    if (asteroids[i].orbit.a == asteroids[i].orbit.b){// && !orbit_corrected[i]) {
 		if (!orbit_corrected[i]) {
-		    double r2 = asteroids[i].orbit.a * (1 + Math.random()*0.25);
-		    double r1 = asteroids[i].orbit.a;
-		    double deltav = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
-		    double E = 0.5*asteroids[i].mass * deltav * deltav;
-		    double theta1 = Math.atan2(velocity.y,velocity.x);
-		    double dir = theta1;		
-		    energy[i] = E;
-		    direction[i] = dir;
-		    allDone = false;
-		    orbit_corrected[i] = true;
+		    if (Math.random() < 0.1) {
+			double r2 = asteroids[i].orbit.a * (1 + Math.random()*0.25);
+			double r1 = asteroids[i].orbit.a;
+			double deltav = Math.sqrt(Orbit.GM / r1) * (Math.sqrt( 2*r2 / (r1+r2)) - 1);
+			double E = 0.5*asteroids[i].mass * deltav * deltav;
+			double theta1 = Math.atan2(velocity.y,velocity.x);
+			double dir = theta1;		
+			energy[i] = E;
+			direction[i] = dir;
+			allDone = false;
+			orbit_corrected[i] = true;
+		    }
+		    else {
+			orbit_corrected[i] = true;
+		    }
 		}
 	    }
 	    else if ( Math.abs(l2norm(location) - Math.max(asteroids[i].orbit.a, asteroids[i].orbit.b)) < asteroids[i].radius() && asteroids[i].orbit.a != asteroids[i].orbit.b) {
